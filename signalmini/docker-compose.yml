@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: signalmini
+      POSTGRES_PASSWORD: signalmini
+      POSTGRES_DB: signalmini
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://signalmini:signalmini@db:5432/signalmini
+      JWT_SECRET: "dev-secret-change-me"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
