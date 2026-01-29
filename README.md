@@ -1,3 +1,6 @@
+<span style="color:red"><b>Before using the script use the command: pip install cryptography</b></span>
+
+
 # Implementarea redusă a unui protocol tip Signal
 ## Schimb de chei + Double Ratchet
 
