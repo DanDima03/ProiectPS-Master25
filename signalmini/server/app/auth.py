@@ -11,14 +11,12 @@ from sqlalchemy.orm import Session
 from .db import get_db
 from .models import User
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me")
+JWT_SECRET = os.environ.get("JWT_SECRET", "dev")
 JWT_ALG = "HS256"
-ACCESS_TTL_MIN = 60 * 24  # 24h
+ACCESS_TTL_MIN = 60 * 24
 
 bearer = HTTPBearer()
 
-# --- Password hashing (PBKDF2) ---
-# Format stored: pbkdf2$<iterations>$<salt_hex>$<dk_hex>
 PBKDF2_ITERS = 200_000
 
 def hash_password(pw: str) -> str:
@@ -42,7 +40,6 @@ def verify_password(pw: str, stored: str) -> bool:
     dk = hashlib.pbkdf2_hmac("sha256", pw_bytes, salt, iters, dklen=len(expected))
     return hmac.compare_digest(dk, expected)
 
-# --- JWT ---
 def create_token(user_id: int, username: str) -> str:
     now = datetime.now(timezone.utc)
     payload = {

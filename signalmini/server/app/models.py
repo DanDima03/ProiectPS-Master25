@@ -19,11 +19,11 @@ class UserKeys(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
 
     # public keys are stored as base64url strings
-    ik_dh_pub: Mapped[str] = mapped_column(Text)      # X25519 public
-    ik_sign_pub: Mapped[str] = mapped_column(Text)    # Ed25519 public
+    ik_dh_pub: Mapped[str] = mapped_column(Text)
+    ik_sign_pub: Mapped[str] = mapped_column(Text)
 
-    spk_dh_pub: Mapped[str] = mapped_column(Text)     # X25519 public
-    spk_sig: Mapped[str] = mapped_column(Text)        # signature over spk_dh_pub (bytes), base64url
+    spk_dh_pub: Mapped[str] = mapped_column(Text)
+    spk_sig: Mapped[str] = mapped_column(Text)
 
     user = relationship("User", back_populates="keys")
     opks = relationship("OneTimePreKey", back_populates="user_keys", cascade="all, delete-orphan")
@@ -35,7 +35,7 @@ class OneTimePreKey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_keys_id: Mapped[int] = mapped_column(ForeignKey("user_keys.id"), index=True)
 
-    opk_dh_pub: Mapped[str] = mapped_column(Text)     # X25519 public, base64url
+    opk_dh_pub: Mapped[str] = mapped_column(Text)
     is_used: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     used_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -48,8 +48,8 @@ class Message(Base):
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
-    msg_type: Mapped[str] = mapped_column(String(16))   # "init" or "msg"
-    payload_json: Mapped[str] = mapped_column(Text)      # JSON serialized
+    msg_type: Mapped[str] = mapped_column(String(16))
+    payload_json: Mapped[str] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     retrieved: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
-# --- Auth ---
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=4, max_length=128)
@@ -14,7 +13,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-# --- Keys ---
 class PublishKeysRequest(BaseModel):
     ik_dh_pub: str
     ik_sign_pub: str
@@ -30,10 +28,9 @@ class PreKeyBundleResponse(BaseModel):
     spk_sig: str
     opk_dh_pub: Optional[str] = None
 
-# --- Messages ---
 class SendMessageRequest(BaseModel):
     to_username: str
-    msg_type: str  # "init" or "msg"
+    msg_type: str
     payload: Dict[str, Any]
 
 class InboxMessage(BaseModel):

@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Tuple
 import os
 import base64
-import json
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
@@ -12,7 +11,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
-# ---------- base64url ----------
+# Helpers base64
 def b64e(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
@@ -21,7 +20,6 @@ def b64d(s: str) -> bytes:
     return base64.urlsafe_b64decode((s + pad).encode())
 
 
-# ---------- KDF / AEAD ----------
 def hkdf(ikm: bytes, salt: bytes, info: bytes, length: int) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=length, salt=salt, info=info).derive(ikm)
 
@@ -31,10 +29,25 @@ def hmac_sha256(key: bytes, data: bytes) -> bytes:
     return h.finalize()
 
 def kdf_rk(rk: bytes, dh_out: bytes) -> Tuple[bytes, bytes]:
+    """
+    KDF pentru root key (DH-ratchet).
+    Primeste:
+      - rk: root key curent
+      - dh_out: rezultatul Diffie-Hellman (bytes)
+    Returneaza:
+      - rk_nou (32 bytes)
+      - ck (chain key) (32 bytes)
+    """
     out = hkdf(dh_out, rk, b"RK|CK", 64)
     return out[:32], out[32:]
 
 def kdf_ck(ck: bytes) -> Tuple[bytes, bytes]:
+    """
+    KDF pentru chain key (ratchet pe mesaj).
+    Din ck scoatem:
+      - mk (message key) pentru AES-GCM
+      - nck (next chain key) pentru urmatorul mesaj
+    """
     mk = hmac_sha256(ck, b"mk")[:32]
     nck = hmac_sha256(ck, b"ck")[:32]
     return nck, mk
@@ -52,9 +65,12 @@ def load_pub(b: bytes) -> X25519PublicKey:
     return X25519PublicKey.from_public_bytes(b)
 
 
-# ---------- Key material ----------
+# Chei utilizator (Identity + PreKeys)
+#  - Identity: chei pe termen lung
+#  - PreKeys: chei pentru initiere offline
 @dataclass
 class Identity:
+    # IK_DH pentru DH, IK_SIGN pentru semnarea SPK
     ik_dh_priv: X25519PrivateKey = field(default_factory=X25519PrivateKey.generate)
     ik_sign_priv: Ed25519PrivateKey = field(default_factory=Ed25519PrivateKey.generate)
 
@@ -66,6 +82,8 @@ class Identity:
 
 @dataclass
 class PreKeys:
+    # SPK_DH = prekey semnat, 
+    # OPK = lista de one-time prekeys
     spk_dh_priv: X25519PrivateKey = field(default_factory=X25519PrivateKey.generate)
     opk_dh_privs: list[X25519PrivateKey] = field(default_factory=list)
 
@@ -83,10 +101,12 @@ class PreKeys:
         return [b64e(pub_bytes(k.public_key())) for k in self.opk_dh_privs]
 
 
-# ---------- X3DH simplified ----------
+# X3DH simplificat
+#  - Alice ia bundle-ul lui Bob si calculeaza RK initial
+#  - Bob (responder) calculează acelasi RK din mesajul init
 def verify_spk_sig(ik_sign_pub_b64: str, spk_dh_pub_b64: str, spk_sig_b64: str) -> None:
     ik_sign_pub = Ed25519PublicKey.from_public_bytes(b64d(ik_sign_pub_b64))
-    ik_sign_pub.verify(b64d(spk_sig_b64), b64d(spk_dh_pub_b64))  # raises if invalid
+    ik_sign_pub.verify(b64d(spk_sig_b64), b64d(spk_dh_pub_b64)) 
 
 def x3dh_initiator(
     alice_ik_dh_priv: X25519PrivateKey,
@@ -94,9 +114,6 @@ def x3dh_initiator(
     bob_spk_dh_pub_b64: str,
     bob_opk_dh_pub_b64: Optional[str],
 ) -> Tuple[bytes, str, Optional[str]]:
-    """
-    Returns (rk, alice_eph_pub_b64, used_opk_pub_b64_or_None)
-    """
     bob_ik = load_pub(b64d(bob_ik_dh_pub_b64))
     bob_spk = load_pub(b64d(bob_spk_dh_pub_b64))
 
@@ -144,7 +161,9 @@ def x3dh_responder(
     return rk
 
 
-# ---------- Double Ratchet simplified ----------
+# Double Ratchet simplificat
+#  - RK se actualizeaza cand DH public se schimba (DH-ratchet)
+#  - CK se actualizeaza la fiecare mesaj (chain-ratchet)
 @dataclass
 class Header:
     dh_pub_b64: str
@@ -244,7 +263,6 @@ class RatchetState:
         return aead_decrypt(mk, b64d(hdr.nonce_b64), b64d(ciphertext_b64), hdr.aad())
 
 
-# ---------- Simple local state serialization ----------
 def ratchet_to_json(st: RatchetState) -> dict:
     return {
         "rk": b64e(st.rk),
