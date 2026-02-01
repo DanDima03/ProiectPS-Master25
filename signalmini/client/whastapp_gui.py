@@ -19,14 +19,9 @@ from crypto import (
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
 
-# =========================
-# Paths / storage
-# =========================
-
 DEFAULT_API = os.environ.get("SIGNALMINI_API", "http://localhost:8000")
 
 def base_app_dir() -> str:
-    # Windows: %APPDATA%\SignalMini, else ~/.signalmini
     appdata = os.environ.get("APPDATA")
     if appdata:
         return os.path.join(appdata, "SignalMini")
@@ -90,9 +85,6 @@ def list_known_peers(state_dir: str) -> List[str]:
     return sorted(peers)
 
 
-# =========================
-# UNREAD (badge) storage
-# =========================
 
 def unread_file() -> str:
     return "unread.json"
@@ -121,9 +113,7 @@ def get_unread(state_dir: str, peer: str) -> int:
     return int(d.get(peer, 0))
 
 
-# =========================
 # Local key management
-# =========================
 
 def load_or_create_identity(state_dir: str) -> dict:
     if not exists(state_dir, "identity.json"):
@@ -164,10 +154,7 @@ def opk_take_by_pub(state_dir: str, opk_pub_b64: str):
             return X25519PrivateKey.from_private_bytes(b64d(priv_b64))
     return None
 
-
-# =========================
 # HTTP
-# =========================
 
 def headers_with_token(token: Optional[str]) -> dict:
     if not token:
@@ -192,15 +179,12 @@ def http_get(api: str, path: str, token: Optional[str] = None):
         raise RuntimeError(f"HTTP {r.status_code}: {r.text}")
     return r.json()
 
-
-# =========================
 # UI components
-# =========================
 
 class Bubble(tk.Frame):
     def __init__(self, master, text: str, is_me: bool, timestamp: Optional[str] = None):
         super().__init__(master, bg=master["bg"])
-        bubble_bg = "#DCF8C6" if is_me else "#FFFFFF"  # whatsapp-ish
+        bubble_bg = "#DCF8C6" if is_me else "#FFFFFF"
         fg = "#111111"
 
         outer = tk.Frame(self, bg=master["bg"])
@@ -260,10 +244,7 @@ class ScrollableChat(tk.Frame):
     def scroll_to_bottom(self):
         self.canvas.yview_moveto(1.0)
 
-
-# =========================
 # Main App
-# =========================
 
 class SignalMiniWhatsApp(tk.Tk):
     def __init__(self):
@@ -424,9 +405,7 @@ class SignalMiniWhatsApp(tk.Tk):
             pass
         self.after(100, self._drain_uiq)
 
-    # =========================
     # Auth / keys
-    # =========================
 
     def register_user(self):
         user = self.ent_user.get().strip()
@@ -497,9 +476,7 @@ class SignalMiniWhatsApp(tk.Tk):
 
         self._bg(work, ok, err)
 
-    # =========================
-    # Conversations / selection (with unread badge)
-    # =========================
+    # Conversations
 
     def refresh_conversations(self):
         self.lst_peers.delete(0, tk.END)
@@ -546,7 +523,6 @@ class SignalMiniWhatsApp(tk.Tk):
         idx = self.lst_peers.curselection()[0]
         row = self.lst_peers.get(idx)
 
-        # row format: "● peer — preview" OR "  peer — preview"
         row = row[2:]
         peer = row.split(" — ", 1)[0].strip()
         self._select_peer(peer)
@@ -556,7 +532,7 @@ class SignalMiniWhatsApp(tk.Tk):
         self.lbl_chat_title.config(text=peer)
 
         if self.state_dir:
-            clear_unread(self.state_dir, peer)  # mark as read
+            clear_unread(self.state_dir, peer)
 
         self._load_chat_history(peer)
         self.refresh_conversations()
@@ -570,9 +546,7 @@ class SignalMiniWhatsApp(tk.Tk):
             self.chat.add_bubble(it["text"], is_me=it["me"], timestamp=it.get("ts"))
         self.chat.scroll_to_bottom()
 
-    # =========================
     # Messaging
-    # =========================
 
     def send_message(self):
         if not self.token or not self.username or not self.state_dir:
@@ -717,10 +691,6 @@ class SignalMiniWhatsApp(tk.Tk):
             messagebox.showerror("Inbox failed", str(e))
 
         self._bg(work, ok, err)
-
-    # =========================
-    # Auto poller
-    # =========================
 
     def _poller_loop(self):
         while True:

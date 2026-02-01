@@ -33,7 +33,6 @@ def publish_bundle(
         keys.spk_dh_pub = req.spk_dh_pub
         keys.spk_sig = req.spk_sig
 
-    # add OPKs (ignore duplicates)
     existing = {o.opk_dh_pub for o in keys.opks}
     for opk in req.opk_dh_pubs:
         if opk not in existing:
@@ -50,7 +49,6 @@ def get_bundle(username: str, db: Session = Depends(get_db)):
 
     keys = user.keys
 
-    # pick one unused OPK, mark used (best-effort minimal)
     opk = (
         db.query(OneTimePreKey)
         .filter(OneTimePreKey.user_keys_id == keys.id, OneTimePreKey.is_used == False)
